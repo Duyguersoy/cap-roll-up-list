@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Package/build artifacts
+build/
+dist/
+*.egg-info/
+
+# Test/cache
+.pytest_cache/
+.mypy_cache/
+.coverage
+
+# Local environment
+.env
+
+# NovaVision local test files
+app.test.json
+app.real.json
+
+# IDE
+.vscode/
+.idea/
