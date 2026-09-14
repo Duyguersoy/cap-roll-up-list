@@ -41,7 +41,10 @@ class InputChildDetections(Input):
         "inputChildDetections"
     ] = "inputChildDetections"
 
-    value: List[List[Detection]]
+    value: Union[
+        List[Detection],
+        List[List[Detection]],
+    ]
 
     type: Literal[
         "list"

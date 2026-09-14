@@ -23,12 +23,8 @@ if __package__:
     from ..models.PackageModel import PackageModel
     from ..utils.response import build_response
 else:
-    from components.RollUpList.src.models.PackageModel import (
-        PackageModel,
-    )
-    from components.RollUpList.src.utils.response import (
-        build_response,
-    )
+    from components.RollUpList.src.models.PackageModel import PackageModel
+    from components.RollUpList.src.utils.response import build_response
 
 
 VALID_CONFIDENCE_STRATEGIES = {
@@ -385,6 +381,90 @@ class RollUpList(Component):
 
         raise TypeError(
             "Unsupported Detection type."
+        )
+
+    # ---------------------------------------------------------------------
+    # Child Detection Input Normalization
+    # ---------------------------------------------------------------------
+
+    @staticmethod
+    def normalize_child_detection_groups(
+        child_detections,
+        parent_count: int,
+    ) -> List[List]:
+
+        items = list(
+            child_detections
+            or []
+        )
+
+        # No child detections means every parent crop
+        # produced an empty detection list.
+        if not items:
+            return [
+                []
+                for _ in range(parent_count)
+            ]
+
+        group_flags = [
+            isinstance(
+                item,
+                (list, tuple),
+            )
+            for item in items
+        ]
+
+        # Expected Roll-Up format:
+        #
+        # [
+        #     [Detection, Detection],
+        #     [Detection],
+        #     ...
+        # ]
+        if all(
+            group_flags
+        ):
+            return [
+                list(
+                    group
+                    or []
+                )
+                for group in items
+            ]
+
+        # A mixture of Detection and List[Detection]
+        # is not a valid input representation.
+        if any(
+            group_flags
+        ):
+            raise ValueError(
+                "inputChildDetections cannot mix "
+                "Detection values and detection groups."
+            )
+
+        # NovaVision may return a flat List[Detection]
+        # when a single parent crop is processed:
+        #
+        # [
+        #     Detection,
+        #     Detection,
+        # ]
+        #
+        # In that case all detections belong to the
+        # only parent crop.
+        if parent_count == 1:
+            return [
+                items
+            ]
+
+        # With multiple parents a flat detection list
+        # does not contain enough information to determine
+        # which child belongs to which parent crop.
+        raise ValueError(
+            "inputChildDetections was received as a flat "
+            "List[Detection], but multiple parent detections "
+            "exist. Child detections must be grouped per "
+            "parent crop as List[List[Detection]]."
         )
 
     # ---------------------------------------------------------------------
@@ -933,8 +1013,6 @@ class RollUpList(Component):
             )
         )
 
-        # Roboflow keypoint merge behaviour:
-        # bbox coordinates are averaged.
         bboxes = np.array(
             [
                 self.bbox_to_xyxy(
@@ -965,19 +1043,23 @@ class RollUpList(Component):
             len(first_keypoints)
         ):
 
-            point = self.detection_to_dict(
-                first_keypoints[
-                    keypoint_index
-                ]
-            ) if not isinstance(
-                first_keypoints[
-                    keypoint_index
-                ],
-                dict,
-            ) else deepcopy(
-                first_keypoints[
-                    keypoint_index
-                ]
+            point = (
+                self.detection_to_dict(
+                    first_keypoints[
+                        keypoint_index
+                    ]
+                )
+                if not isinstance(
+                    first_keypoints[
+                        keypoint_index
+                    ],
+                    dict,
+                )
+                else deepcopy(
+                    first_keypoints[
+                        keypoint_index
+                    ]
+                )
             )
 
             x_values = []
@@ -1177,25 +1259,10 @@ class RollUpList(Component):
 
         merged_bbox = np.array(
             [
-                bboxes[
-                    :,
-                    0
-                ].min(),
-
-                bboxes[
-                    :,
-                    1
-                ].min(),
-
-                bboxes[
-                    :,
-                    2
-                ].max(),
-
-                bboxes[
-                    :,
-                    3
-                ].max(),
+                bboxes[:, 0].min(),
+                bboxes[:, 1].min(),
+                bboxes[:, 2].max(),
+                bboxes[:, 3].max(),
             ],
             dtype=float,
         )
@@ -1376,9 +1443,13 @@ class RollUpList(Component):
             or []
         )
 
-        child_detection_groups = list(
-            self.input_child_detections
-            or []
+        child_detection_groups = (
+            self.normalize_child_detection_groups(
+                child_detections=self.input_child_detections,
+                parent_count=len(
+                    parent_detections
+                ),
+            )
         )
 
         # One child detection group must correspond
