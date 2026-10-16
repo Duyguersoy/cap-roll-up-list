@@ -14,8 +14,8 @@ sys.path.append(
     )
 )
 
-
 from sdks.novavision.src.base.component import Component
+from sdks.novavision.src.base.model import BoundingBox, KeyPoints, ROI
 from sdks.novavision.src.helper.executor import Executor
 
 
@@ -36,24 +36,14 @@ VALID_CONFIDENCE_STRATEGIES = {
 
 class RollUpList(Component):
 
-    def __init__(
-        self,
-        request,
-        bootstrap,
-    ):
-        super().__init__(
-            request,
-            bootstrap,
-        )
+    def __init__(self, request, bootstrap):
+        super().__init__(request, bootstrap)
 
         self.request.model = PackageModel(
             **self.request.data
         )
 
-        # -----------------------------------------------------------------
         # Inputs
-        # -----------------------------------------------------------------
-
         self.input_parent_detections = self.request.get_param(
             "inputParentDetections"
         )
@@ -62,10 +52,7 @@ class RollUpList(Component):
             "inputChildDetections"
         )
 
-        # -----------------------------------------------------------------
         # Configs
-        # -----------------------------------------------------------------
-
         confidence_strategy = self.safe_get_param(
             "ConfigConfidenceStrategy",
             "configConfidenceStrategy",
@@ -103,10 +90,7 @@ class RollUpList(Component):
             minimum=0.0,
         )
 
-        # -----------------------------------------------------------------
         # Outputs
-        # -----------------------------------------------------------------
-
         self.output_rolled_up_detections = []
         self.output_crop_zones = []
 
@@ -115,27 +99,17 @@ class RollUpList(Component):
     # ---------------------------------------------------------------------
 
     @staticmethod
-    def bootstrap(
-        config: dict = None,
-    ) -> dict:
+    def bootstrap(config: dict = None) -> dict:
         return {}
 
     # ---------------------------------------------------------------------
     # Config Helpers
     # ---------------------------------------------------------------------
 
-    def safe_get_param(
-        self,
-        *names,
-        default=None,
-    ):
-
+    def safe_get_param(self, *names, default=None):
         for name in names:
-
             try:
-                value = self.request.get_param(
-                    name
-                )
+                value = self.request.get_param(name)
             except Exception:
                 continue
 
@@ -145,14 +119,8 @@ class RollUpList(Component):
         return default
 
     @staticmethod
-    def is_placeholder(
-        value,
-    ) -> bool:
-
-        if not isinstance(
-            value,
-            str,
-        ):
+    def is_placeholder(value) -> bool:
+        if not isinstance(value, str):
             return False
 
         value = value.strip()
@@ -163,55 +131,32 @@ class RollUpList(Component):
         )
 
     @staticmethod
-    def unwrap_config_value(
-        value,
-        default=None,
-    ):
-
+    def unwrap_config_value(value, default=None):
         current = value
 
         for _ in range(6):
-
             if current is None:
                 return default
 
-            if isinstance(
-                current,
-                (int, float, bool),
-            ):
+            if isinstance(current, (int, float, bool)):
                 return current
 
-            if isinstance(
-                current,
-                str,
-            ):
-
+            if isinstance(current, str):
                 current = current.strip()
 
                 if not current:
                     return default
 
-                if RollUpList.is_placeholder(
-                    current
-                ):
+                if RollUpList.is_placeholder(current):
                     return default
 
                 return current
 
-            if isinstance(
-                current,
-                dict,
-            ):
-
-                option_name = current.get(
-                    "name"
-                )
+            if isinstance(current, dict):
+                option_name = current.get("name")
 
                 if (
-                    isinstance(
-                        option_name,
-                        str,
-                    )
+                    isinstance(option_name, str)
                     and option_name.lower()
                     in VALID_CONFIDENCE_STRATEGIES
                 ):
@@ -220,32 +165,19 @@ class RollUpList(Component):
                 if "value" not in current:
                     return default
 
-                current = current.get(
-                    "value"
-                )
-
+                current = current.get("value")
                 continue
 
-            option_name = getattr(
-                current,
-                "name",
-                None,
-            )
+            option_name = getattr(current, "name", None)
 
             if (
-                isinstance(
-                    option_name,
-                    str,
-                )
+                isinstance(option_name, str)
                 and option_name.lower()
                 in VALID_CONFIDENCE_STRATEGIES
             ):
                 return option_name.lower()
 
-            if hasattr(
-                current,
-                "value",
-            ):
+            if hasattr(current, "value"):
                 current = current.value
                 continue
 
@@ -254,21 +186,15 @@ class RollUpList(Component):
         return default
 
     @staticmethod
-    def normalize_confidence_strategy(
-        value,
-    ) -> str:
-
+    def normalize_confidence_strategy(value) -> str:
         value = RollUpList.unwrap_config_value(
             value,
             default="max",
         )
 
-        value = str(
-            value
-        ).lower()
+        value = str(value).lower()
 
         if value not in VALID_CONFIDENCE_STRATEGIES:
-
             raise ValueError(
                 "Confidence Strategy must be "
                 "'max', 'mean' or 'min'."
@@ -283,38 +209,24 @@ class RollUpList(Component):
         minimum=None,
         maximum=None,
     ) -> float:
-
         value = RollUpList.unwrap_config_value(
             value,
             default=default,
         )
 
         try:
-            value = float(
-                value
-            )
-
-        except (
-            TypeError,
-            ValueError,
-        ) as error:
-
+            value = float(value)
+        except (TypeError, ValueError) as error:
             raise ValueError(
                 "Config value must be numeric."
             ) from error
 
-        if (
-            minimum is not None
-            and value < minimum
-        ):
+        if minimum is not None and value < minimum:
             raise ValueError(
                 f"Config value cannot be less than {minimum}."
             )
 
-        if (
-            maximum is not None
-            and value > maximum
-        ):
+        if maximum is not None and value > maximum:
             raise ValueError(
                 f"Config value cannot be greater than {maximum}."
             )
@@ -326,58 +238,25 @@ class RollUpList(Component):
     # ---------------------------------------------------------------------
 
     @staticmethod
-    def get_value(
-        obj,
-        key,
-        default=None,
-    ):
-
+    def get_value(obj, key, default=None):
         if obj is None:
             return default
 
-        if isinstance(
-            obj,
-            dict,
-        ):
-            return obj.get(
-                key,
-                default,
-            )
+        if isinstance(obj, dict):
+            return obj.get(key, default)
 
-        return getattr(
-            obj,
-            key,
-            default,
-        )
+        return getattr(obj, key, default)
 
     @staticmethod
-    def detection_to_dict(
-        detection,
-    ) -> dict:
+    def detection_to_dict(detection) -> dict:
+        if isinstance(detection, dict):
+            return deepcopy(detection)
 
-        if isinstance(
-            detection,
-            dict,
-        ):
-            return deepcopy(
-                detection
-            )
+        if hasattr(detection, "model_dump"):
+            return deepcopy(detection.model_dump())
 
-        if hasattr(
-            detection,
-            "model_dump",
-        ):
-            return deepcopy(
-                detection.model_dump()
-            )
-
-        if hasattr(
-            detection,
-            "dict",
-        ):
-            return deepcopy(
-                detection.dict()
-            )
+        if hasattr(detection, "dict"):
+            return deepcopy(detection.dict())
 
         raise TypeError(
             "Unsupported Detection type."
@@ -392,14 +271,9 @@ class RollUpList(Component):
         child_detections,
         parent_count: int,
     ) -> List[List]:
+        items = list(child_detections or [])
 
-        items = list(
-            child_detections
-            or []
-        )
-
-        # No child detections means every parent crop
-        # produced an empty detection list.
+        # Empty input means no detections for any parent.
         if not items:
             return [
                 []
@@ -407,59 +281,27 @@ class RollUpList(Component):
             ]
 
         group_flags = [
-            isinstance(
-                item,
-                (list, tuple),
-            )
+            isinstance(item, (list, tuple))
             for item in items
         ]
 
-        # Expected Roll-Up format:
-        #
-        # [
-        #     [Detection, Detection],
-        #     [Detection],
-        #     ...
-        # ]
-        if all(
-            group_flags
-        ):
+        # Each group corresponds to one parent crop.
+        if all(group_flags):
             return [
-                list(
-                    group
-                    or []
-                )
+                list(group or [])
                 for group in items
             ]
 
-        # A mixture of Detection and List[Detection]
-        # is not a valid input representation.
-        if any(
-            group_flags
-        ):
+        if any(group_flags):
             raise ValueError(
                 "inputChildDetections cannot mix "
                 "Detection values and detection groups."
             )
 
-        # NovaVision may return a flat List[Detection]
-        # when a single parent crop is processed:
-        #
-        # [
-        #     Detection,
-        #     Detection,
-        # ]
-        #
-        # In that case all detections belong to the
-        # only parent crop.
+        # Flat detections are unambiguous for one parent.
         if parent_count == 1:
-            return [
-                items
-            ]
+            return [items]
 
-        # With multiple parents a flat detection list
-        # does not contain enough information to determine
-        # which child belongs to which parent crop.
         raise ValueError(
             "inputChildDetections was received as a flat "
             "List[Detection], but multiple parent detections "
@@ -472,10 +314,7 @@ class RollUpList(Component):
     # ---------------------------------------------------------------------
 
     @staticmethod
-    def get_bbox(
-        detection,
-    ):
-
+    def get_bbox(detection):
         bbox = RollUpList.get_value(
             detection,
             "boundingBox",
@@ -489,33 +328,13 @@ class RollUpList(Component):
         return bbox
 
     @staticmethod
-    def bbox_to_xyxy(
-        detection,
-    ) -> np.ndarray:
+    def bbox_to_xyxy(detection) -> np.ndarray:
+        bbox = RollUpList.get_bbox(detection)
 
-        bbox = RollUpList.get_bbox(
-            detection
-        )
-
-        left = RollUpList.get_value(
-            bbox,
-            "left",
-        )
-
-        top = RollUpList.get_value(
-            bbox,
-            "top",
-        )
-
-        width = RollUpList.get_value(
-            bbox,
-            "width",
-        )
-
-        height = RollUpList.get_value(
-            bbox,
-            "height",
-        )
+        left = RollUpList.get_value(bbox, "left")
+        top = RollUpList.get_value(bbox, "top")
+        width = RollUpList.get_value(bbox, "width")
+        height = RollUpList.get_value(bbox, "height")
 
         if (
             left is None
@@ -528,21 +347,10 @@ class RollUpList(Component):
                 "left, top, width and height."
             )
 
-        left = float(
-            left
-        )
-
-        top = float(
-            top
-        )
-
-        width = float(
-            width
-        )
-
-        height = float(
-            height
-        )
+        left = float(left)
+        top = float(top)
+        width = float(width)
+        height = float(height)
 
         return np.array(
             [
@@ -559,22 +367,10 @@ class RollUpList(Component):
         detection: dict,
         bbox,
     ) -> dict:
-
-        left = float(
-            bbox[0]
-        )
-
-        top = float(
-            bbox[1]
-        )
-
-        right = float(
-            bbox[2]
-        )
-
-        bottom = float(
-            bbox[3]
-        )
+        left = float(bbox[0])
+        top = float(bbox[1])
+        right = float(bbox[2])
+        bottom = float(bbox[3])
 
         detection["boundingBox"] = {
             "left": left,
@@ -595,14 +391,11 @@ class RollUpList(Component):
         x_offset: float,
         y_offset: float,
     ) -> dict:
-
         result = RollUpList.detection_to_dict(
             detection
         )
 
-        bbox = RollUpList.bbox_to_xyxy(
-            result
-        )
+        bbox = RollUpList.bbox_to_xyxy(result)
 
         bbox += np.array(
             [
@@ -619,43 +412,29 @@ class RollUpList(Component):
             bbox,
         )
 
-        keypoints = result.get(
-            "keyPoints"
-        )
+        keypoints = result.get("keyPoints")
 
         if keypoints:
-
             shifted_keypoints = []
 
             for keypoint in keypoints:
-
-                keypoint = deepcopy(
-                    keypoint
-                )
+                keypoint = deepcopy(keypoint)
 
                 if "cx" in keypoint:
                     keypoint["cx"] = (
-                        float(
-                            keypoint["cx"]
-                        )
+                        float(keypoint["cx"])
                         + x_offset
                     )
 
                 if "cy" in keypoint:
                     keypoint["cy"] = (
-                        float(
-                            keypoint["cy"]
-                        )
+                        float(keypoint["cy"])
                         + y_offset
                     )
 
-                shifted_keypoints.append(
-                    keypoint
-                )
+                shifted_keypoints.append(keypoint)
 
-            result["keyPoints"] = (
-                shifted_keypoints
-            )
+            result["keyPoints"] = shifted_keypoints
 
         return result
 
@@ -664,49 +443,42 @@ class RollUpList(Component):
     # ---------------------------------------------------------------------
 
     @staticmethod
-    def create_crop_zone(
-        parent_detection,
-    ) -> List[List[float]]:
+    def create_crop_zone(parent_detection) -> ROI:
+        """Represent a parent crop using the SDK geometry models."""
 
-        bbox = RollUpList.bbox_to_xyxy(
-            parent_detection
+        x_min, y_min, x_max, y_max = (
+            RollUpList.bbox_to_xyxy(
+                parent_detection
+            )
         )
 
-        (
-            x_min,
-            y_min,
-            x_max,
-            y_max,
-        ) = bbox
-
-        return [
-            [
-                float(x_min),
-                float(y_min),
+        return ROI(
+            boundingBox=BoundingBox(
+                left=float(x_min),
+                top=float(y_min),
+                width=float(x_max - x_min),
+                height=float(y_max - y_min),
+            ),
+            keyPoints=[
+                KeyPoints(
+                    cx=float(x),
+                    cy=float(y),
+                )
+                for x, y in (
+                    (x_min, y_min),
+                    (x_max, y_min),
+                    (x_max, y_max),
+                    (x_min, y_max),
+                )
             ],
-            [
-                float(x_max),
-                float(y_min),
-            ],
-            [
-                float(x_max),
-                float(y_max),
-            ],
-            [
-                float(x_min),
-                float(y_max),
-            ],
-        ]
+        )
 
     # ---------------------------------------------------------------------
     # Detection Metadata
     # ---------------------------------------------------------------------
 
     @staticmethod
-    def get_class_key(
-        detection,
-    ):
-
+    def get_class_key(detection):
         class_id = RollUpList.get_value(
             detection,
             "classId",
@@ -723,10 +495,7 @@ class RollUpList(Component):
         )
 
     @staticmethod
-    def get_confidence(
-        detection,
-    ) -> float:
-
+    def get_confidence(detection) -> float:
         value = RollUpList.get_value(
             detection,
             "confidence",
@@ -736,19 +505,14 @@ class RollUpList(Component):
         if value is None:
             return 0.0
 
-        return float(
-            value
-        )
+        return float(value)
 
     def merge_confidences(
         self,
         detections: List,
     ) -> float:
-
         confidences = [
-            self.get_confidence(
-                detection
-            )
+            self.get_confidence(detection)
             for detection in detections
         ]
 
@@ -756,50 +520,24 @@ class RollUpList(Component):
             return 0.0
 
         if self.confidence_strategy == "max":
-            return float(
-                max(confidences)
-            )
+            return float(max(confidences))
 
         if self.confidence_strategy == "mean":
-            return float(
-                np.mean(
-                    confidences
-                )
-            )
+            return float(np.mean(confidences))
 
-        return float(
-            min(confidences)
-        )
+        return float(min(confidences))
 
     # ---------------------------------------------------------------------
     # IoU
     # ---------------------------------------------------------------------
 
     @staticmethod
-    def calculate_iou(
-        bbox_a,
-        bbox_b,
-    ):
+    def calculate_iou(bbox_a, bbox_b):
+        x1 = max(bbox_a[0], bbox_b[0])
+        y1 = max(bbox_a[1], bbox_b[1])
 
-        x1 = max(
-            bbox_a[0],
-            bbox_b[0],
-        )
-
-        y1 = max(
-            bbox_a[1],
-            bbox_b[1],
-        )
-
-        x2 = min(
-            bbox_a[2],
-            bbox_b[2],
-        )
-
-        y2 = min(
-            bbox_a[3],
-            bbox_b[3],
-        )
+        x2 = min(bbox_a[2], bbox_b[2])
+        y2 = min(bbox_a[3], bbox_b[3])
 
         intersection_width = max(
             0.0,
@@ -817,37 +555,16 @@ class RollUpList(Component):
         )
 
         if intersection <= 0.0:
-            return (
-                0.0,
-                0.0,
-            )
+            return 0.0, 0.0
 
-        area_a = max(
-            0.0,
-            (
-                bbox_a[2]
-                - bbox_a[0]
-            ),
-        ) * max(
-            0.0,
-            (
-                bbox_a[3]
-                - bbox_a[1]
-            ),
+        area_a = (
+            max(0.0, bbox_a[2] - bbox_a[0])
+            * max(0.0, bbox_a[3] - bbox_a[1])
         )
 
-        area_b = max(
-            0.0,
-            (
-                bbox_b[2]
-                - bbox_b[0]
-            ),
-        ) * max(
-            0.0,
-            (
-                bbox_b[3]
-                - bbox_b[1]
-            ),
+        area_b = (
+            max(0.0, bbox_b[2] - bbox_b[0])
+            * max(0.0, bbox_b[3] - bbox_b[1])
         )
 
         union = (
@@ -857,19 +574,11 @@ class RollUpList(Component):
         )
 
         if union <= 0.0:
-            return (
-                0.0,
-                intersection,
-            )
+            return 0.0, intersection
 
         return (
-            float(
-                intersection
-                / union
-            ),
-            float(
-                intersection
-            ),
+            float(intersection / union),
+            float(intersection),
         )
 
     # ---------------------------------------------------------------------
@@ -877,10 +586,7 @@ class RollUpList(Component):
     # ---------------------------------------------------------------------
 
     @staticmethod
-    def get_keypoints(
-        detection,
-    ) -> List:
-
+    def get_keypoints(detection) -> List:
         keypoints = RollUpList.get_value(
             detection,
             "keyPoints",
@@ -889,14 +595,9 @@ class RollUpList(Component):
         return keypoints or []
 
     @staticmethod
-    def has_keypoints(
-        detection,
-    ) -> bool:
-
+    def has_keypoints(detection) -> bool:
         return bool(
-            RollUpList.get_keypoints(
-                detection
-            )
+            RollUpList.get_keypoints(detection)
         )
 
     @staticmethod
@@ -904,7 +605,6 @@ class RollUpList(Component):
         detection_a,
         detection_b,
     ):
-
         keypoints_a = RollUpList.get_keypoints(
             detection_a
         )
@@ -916,21 +616,16 @@ class RollUpList(Component):
         if (
             not keypoints_a
             or not keypoints_b
-            or len(keypoints_a)
-            != len(keypoints_b)
+            or len(keypoints_a) != len(keypoints_b)
         ):
             return None
 
         distances = []
 
-        for (
-            point_a,
-            point_b,
-        ) in zip(
+        for point_a, point_b in zip(
             keypoints_a,
             keypoints_b,
         ):
-
             ax = RollUpList.get_value(
                 point_a,
                 "cx",
@@ -951,40 +646,26 @@ class RollUpList(Component):
                 "cy",
             )
 
-            if None in (
-                ax,
-                ay,
-                bx,
-                by,
-            ):
+            if None in (ax, ay, bx, by):
                 return None
 
             distance = np.hypot(
-                float(ax)
-                - float(bx),
-                float(ay)
-                - float(by),
+                float(ax) - float(bx),
+                float(ay) - float(by),
             )
 
-            distances.append(
-                distance
-            )
+            distances.append(distance)
 
         if not distances:
             return None
 
-        return float(
-            np.mean(
-                distances
-            )
-        )
+        return float(np.mean(distances))
 
     def should_merge_keypoints(
         self,
         detection_a,
         detection_b,
     ) -> bool:
-
         distance = self.keypoint_distance(
             detection_a,
             detection_b,
@@ -1002,22 +683,17 @@ class RollUpList(Component):
         self,
         detections: List,
     ) -> dict:
-
         result = self.detection_to_dict(
             detections[0]
         )
 
         result["confidence"] = (
-            self.merge_confidences(
-                detections
-            )
+            self.merge_confidences(detections)
         )
 
         bboxes = np.array(
             [
-                self.bbox_to_xyxy(
-                    detection
-                )
+                self.bbox_to_xyxy(detection)
                 for detection in detections
             ],
             dtype=float,
@@ -1042,39 +718,27 @@ class RollUpList(Component):
         for keypoint_index in range(
             len(first_keypoints)
         ):
+            first_point = first_keypoints[
+                keypoint_index
+            ]
 
-            point = (
-                self.detection_to_dict(
-                    first_keypoints[
-                        keypoint_index
-                    ]
+            if isinstance(first_point, dict):
+                point = deepcopy(first_point)
+            else:
+                point = self.detection_to_dict(
+                    first_point
                 )
-                if not isinstance(
-                    first_keypoints[
-                        keypoint_index
-                    ],
-                    dict,
-                )
-                else deepcopy(
-                    first_keypoints[
-                        keypoint_index
-                    ]
-                )
-            )
 
             x_values = []
             y_values = []
             confidence_values = []
 
             for detection in detections:
-
                 keypoints = self.get_keypoints(
                     detection
                 )
 
-                if keypoint_index >= len(
-                    keypoints
-                ):
+                if keypoint_index >= len(keypoints):
                     continue
 
                 keypoint = keypoints[
@@ -1097,14 +761,10 @@ class RollUpList(Component):
                 )
 
                 if cx is not None:
-                    x_values.append(
-                        float(cx)
-                    )
+                    x_values.append(float(cx))
 
                 if cy is not None:
-                    y_values.append(
-                        float(cy)
-                    )
+                    y_values.append(float(cy))
 
                 if confidence is not None:
                     confidence_values.append(
@@ -1113,32 +773,22 @@ class RollUpList(Component):
 
             if x_values:
                 point["cx"] = float(
-                    np.mean(
-                        x_values
-                    )
+                    np.mean(x_values)
                 )
 
             if y_values:
                 point["cy"] = float(
-                    np.mean(
-                        y_values
-                    )
+                    np.mean(y_values)
                 )
 
             if confidence_values:
                 point["confidence"] = float(
-                    np.mean(
-                        confidence_values
-                    )
+                    np.mean(confidence_values)
                 )
 
-            merged_keypoints.append(
-                point
-            )
+            merged_keypoints.append(point)
 
-        result["keyPoints"] = (
-            merged_keypoints
-        )
+        result["keyPoints"] = merged_keypoints
 
         return result
 
@@ -1146,57 +796,37 @@ class RollUpList(Component):
         self,
         detections: List,
     ) -> List[dict]:
-
         if not detections:
             return []
 
         merged = []
         used = set()
 
-        for i, detection_a in enumerate(
-            detections
-        ):
-
+        for i, detection_a in enumerate(detections):
             if i in used:
                 continue
 
-            group = [
-                detection_a
-            ]
-
-            used.add(
-                i
-            )
+            group = [detection_a]
+            used.add(i)
 
             for j in range(
                 i + 1,
                 len(detections),
             ):
-
                 if j in used:
                     continue
 
-                detection_b = detections[
-                    j
-                ]
+                detection_b = detections[j]
 
                 if self.should_merge_keypoints(
                     detection_a,
                     detection_b,
                 ):
-
-                    group.append(
-                        detection_b
-                    )
-
-                    used.add(
-                        j
-                    )
+                    group.append(detection_b)
+                    used.add(j)
 
             merged.append(
-                self.merge_keypoint_group(
-                    group
-                )
+                self.merge_keypoint_group(group)
             )
 
         return merged
@@ -1210,7 +840,6 @@ class RollUpList(Component):
         detection_a,
         detection_b,
     ) -> bool:
-
         bbox_a = self.bbox_to_xyxy(
             detection_a
         )
@@ -1219,39 +848,27 @@ class RollUpList(Component):
             detection_b
         )
 
-        (
-            iou,
-            intersection,
-        ) = self.calculate_iou(
+        iou, intersection = self.calculate_iou(
             bbox_a,
             bbox_b,
         )
 
         if self.overlap_threshold <= 0.0:
-            return (
-                intersection
-                > 0.0
-            )
+            return intersection > 0.0
 
-        return (
-            iou
-            >= self.overlap_threshold
-        )
+        return iou >= self.overlap_threshold
 
     def merge_bbox_group(
         self,
         detections: List,
     ) -> dict:
-
         result = self.detection_to_dict(
             detections[0]
         )
 
         bboxes = np.array(
             [
-                self.bbox_to_xyxy(
-                    detection
-                )
+                self.bbox_to_xyxy(detection)
                 for detection in detections
             ],
             dtype=float,
@@ -1273,9 +890,7 @@ class RollUpList(Component):
         )
 
         result["confidence"] = (
-            self.merge_confidences(
-                detections
-            )
+            self.merge_confidences(detections)
         )
 
         return result
@@ -1284,101 +899,54 @@ class RollUpList(Component):
         self,
         detections: List,
     ) -> List[dict]:
-
         if not detections:
             return []
 
-        count = len(
-            detections
-        )
-
-        parent = list(
-            range(count)
-        )
+        count = len(detections)
+        parent = list(range(count))
 
         def find(index):
-
             root = index
 
             while parent[root] != root:
-                root = parent[
-                    root
-                ]
+                root = parent[root]
 
             while parent[index] != root:
-
-                next_index = parent[
-                    index
-                ]
-
-                parent[
-                    index
-                ] = root
-
+                next_index = parent[index]
+                parent[index] = root
                 index = next_index
 
             return root
 
-        def union(
-            first,
-            second,
-        ):
-
-            first_root = find(
-                first
-            )
-
-            second_root = find(
-                second
-            )
+        def union(first, second):
+            first_root = find(first)
+            second_root = find(second)
 
             if first_root != second_root:
-                parent[
-                    second_root
-                ] = first_root
+                parent[second_root] = first_root
 
-        for i in range(
-            count
-        ):
-
-            for j in range(
-                i + 1,
-                count,
-            ):
-
+        for i in range(count):
+            for j in range(i + 1, count):
                 if self.should_merge_bbox(
                     detections[i],
                     detections[j],
                 ):
-
-                    union(
-                        i,
-                        j,
-                    )
+                    union(i, j)
 
         groups = {}
 
-        for index in range(
-            count
-        ):
-
-            root = find(
-                index
-            )
+        for index in range(count):
+            root = find(index)
 
             groups.setdefault(
                 root,
-                []
+                [],
             ).append(
-                detections[
-                    index
-                ]
+                detections[index]
             )
 
         return [
-            self.merge_bbox_group(
-                group
-            )
+            self.merge_bbox_group(group)
             for group in groups.values()
         ]
 
@@ -1390,30 +958,24 @@ class RollUpList(Component):
         self,
         detections: List,
     ) -> List[dict]:
-
         if not detections:
             return []
 
         keypoint_detections = [
             detection
             for detection in detections
-            if self.has_keypoints(
-                detection
-            )
+            if self.has_keypoints(detection)
         ]
 
         non_keypoint_detections = [
             detection
             for detection in detections
-            if not self.has_keypoints(
-                detection
-            )
+            if not self.has_keypoints(detection)
         ]
 
         results = []
 
         if keypoint_detections:
-
             results.extend(
                 self.merge_keypoint_detections(
                     keypoint_detections
@@ -1421,7 +983,6 @@ class RollUpList(Component):
             )
 
         if non_keypoint_detections:
-
             results.extend(
                 self.merge_bbox_detections(
                     non_keypoint_detections
@@ -1434,10 +995,7 @@ class RollUpList(Component):
     # Run
     # ---------------------------------------------------------------------
 
-    def run(
-        self,
-    ):
-
+    def run(self):
         parent_detections = list(
             self.input_parent_detections
             or []
@@ -1445,24 +1003,19 @@ class RollUpList(Component):
 
         child_detection_groups = (
             self.normalize_child_detection_groups(
-                child_detections=self.input_child_detections,
+                child_detections=(
+                    self.input_child_detections
+                ),
                 parent_count=len(
                     parent_detections
                 ),
             )
         )
 
-        # One child detection group must correspond
-        # to each parent crop.
         if (
-            len(
-                parent_detections
-            )
-            != len(
-                child_detection_groups
-            )
+            len(parent_detections)
+            != len(child_detection_groups)
         ):
-
             raise ValueError(
                 "Number of parent detections must match "
                 "number of child detection groups."
@@ -1471,32 +1024,16 @@ class RollUpList(Component):
         transformed_detections = []
         crop_zones = []
 
-        # -------------------------------------------------------------
-        # Transform child coordinates to parent coordinates
-        # -------------------------------------------------------------
-
-        for (
-            index,
-            parent_detection,
-        ) in enumerate(
+        # Transform child coordinates to original-image coordinates.
+        for index, parent_detection in enumerate(
             parent_detections
         ):
-
             parent_bbox = self.bbox_to_xyxy(
                 parent_detection
             )
 
-            x_offset = float(
-                parent_bbox[
-                    0
-                ]
-            )
-
-            y_offset = float(
-                parent_bbox[
-                    1
-                ]
-            )
+            x_offset = float(parent_bbox[0])
+            y_offset = float(parent_bbox[1])
 
             crop_zones.append(
                 self.create_crop_zone(
@@ -1505,14 +1042,11 @@ class RollUpList(Component):
             )
 
             child_detections = (
-                child_detection_groups[
-                    index
-                ]
+                child_detection_groups[index]
                 or []
             )
 
             for child_detection in child_detections:
-
                 transformed_detection = (
                     self.shift_detection(
                         detection=child_detection,
@@ -1525,50 +1059,34 @@ class RollUpList(Component):
                     transformed_detection
                 )
 
-        # -------------------------------------------------------------
-        # Group detections by class
-        # -------------------------------------------------------------
-
+        # Group detections by class.
         detections_by_class = {}
 
         for detection in transformed_detections:
-
             class_key = self.get_class_key(
                 detection
             )
 
             detections_by_class.setdefault(
                 class_key,
-                []
-            ).append(
-                detection
-            )
+                [],
+            ).append(detection)
 
-        # -------------------------------------------------------------
-        # Merge detections
-        # -------------------------------------------------------------
-
+        # Merge detections.
         rolled_up_detections = []
 
         for detections in detections_by_class.values():
-
             rolled_up_detections.extend(
                 self.merge_detection_group(
                     detections
                 )
             )
 
-        # -------------------------------------------------------------
-        # Outputs
-        # -------------------------------------------------------------
-
         self.output_rolled_up_detections = (
             rolled_up_detections
         )
 
-        self.output_crop_zones = (
-            crop_zones
-        )
+        self.output_crop_zones = crop_zones
 
         return build_response(
             context=self
@@ -1576,6 +1094,4 @@ class RollUpList(Component):
 
 
 if __name__ == "__main__":
-    Executor(
-        sys.argv[1]
-    ).run()
+    Executor(sys.argv[1]).run()

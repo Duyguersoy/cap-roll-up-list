@@ -5,6 +5,7 @@ from pydantic import Field
 from sdks.novavision.src.base.model import (
     Package,
     Detection,
+    ROI,
     Inputs,
     Configs,
     Outputs,
@@ -35,6 +36,18 @@ class InputParentDetections(Input):
     class Config:
         title = "Parent Detections"
 
+        json_schema_extra = {
+            "shortDescription": (
+                "Parent detections from the original image."
+            ),
+            "longDescription": (
+                "Contains parent detections generated on the original image. "
+                "The bounding box of each parent detection is used as the "
+                "reference region for transforming child detection coordinates "
+                "from crop coordinates back to the original image coordinates."
+            ),
+        }
+
 
 class InputChildDetections(Input):
     name: Literal[
@@ -52,6 +65,19 @@ class InputChildDetections(Input):
 
     class Config:
         title = "Child Detections"
+
+        json_schema_extra = {
+            "shortDescription": (
+                "Detections generated from cropped image regions."
+            ),
+            "longDescription": (
+                "Contains child detections generated on cropped image regions. "
+                "For a single parent detection, a flat List[Detection] can be "
+                "used. For multiple parent detections, child detections must "
+                "be grouped as List[List[Detection]] so that each child "
+                "detection group corresponds to its parent crop."
+            ),
+        }
 
 
 # -----------------------------------------------------------------------------
@@ -73,21 +99,26 @@ class OutputRolledUpDetections(Output):
     class Config:
         title = "Rolled Up Detections"
 
+        json_schema_extra = {
+            "shortDescription": (
+                "Child detections transformed to original image coordinates."
+            ),
+            "longDescription": (
+                "Contains child detections whose bounding boxes and supported "
+                "keypoints have been transformed from crop coordinates back "
+                "to the coordinate system of the original image. Overlapping "
+                "detections may also be merged according to the configured "
+                "merge settings."
+            ),
+        }
+
 
 class OutputCropZones(Output):
     name: Literal[
         "outputCropZones"
     ] = "outputCropZones"
 
-    # [
-    #   [
-    #       [x1, y1],
-    #       [x2, y2],
-    #       [x3, y3],
-    #       [x4, y4],
-    #   ]
-    # ]
-    value: List[List[List[float]]]
+    value: List[ROI]
 
     type: Literal[
         "list"
@@ -95,6 +126,19 @@ class OutputCropZones(Output):
 
     class Config:
         title = "Crop Zones"
+
+        json_schema_extra = {
+            "shortDescription": (
+                "Crop regions generated from parent detections."
+            ),
+            "longDescription": (
+                "Returns each crop region using the NovaVision ROI base model. "
+                "Each ROI contains the parent bounding box and the corner "
+                "keypoints of the crop region, allowing downstream NovaVision "
+                "components to consume standard boundingBox and keyPoints "
+                "structures."
+            ),
+        }
 
 
 # -----------------------------------------------------------------------------
@@ -199,9 +243,13 @@ class ConfigConfidenceStrategy(Config):
 
         json_schema_extra = {
             "shortDescription": (
-                "Strategy used to combine confidence scores "
-                "when overlapping detections are merged."
-            )
+                "Confidence merge strategy."
+            ),
+            "longDescription": (
+                "Defines how confidence scores are combined when multiple "
+                "detections are merged. Supported strategies are max, mean, "
+                "and min."
+            ),
         }
 
 
@@ -229,9 +277,15 @@ class ConfigOverlapThreshold(Config):
 
         json_schema_extra = {
             "shortDescription": (
-                "Minimum IoU required to merge overlapping "
-                "detections. Range: 0.0 - 1.0."
-            )
+                "IoU threshold for bounding-box merging."
+            ),
+            "longDescription": (
+                "Defines the minimum Intersection over Union (IoU) value "
+                "required to merge overlapping bounding-box detections. "
+                "The accepted range is 0.0 to 1.0. When the threshold is "
+                "0.0, detections are merged when they have a positive "
+                "intersection."
+            ),
         }
 
 
@@ -258,9 +312,13 @@ class ConfigKeypointMergeThreshold(Config):
 
         json_schema_extra = {
             "shortDescription": (
-                "Maximum average keypoint distance in pixels "
-                "for merging keypoint detections."
-            )
+                "Maximum keypoint merge distance in pixels."
+            ),
+            "longDescription": (
+                "Defines the maximum average Euclidean distance between "
+                "corresponding keypoints for two keypoint-based detections "
+                "to be considered close enough to merge."
+            ),
         }
 
 
